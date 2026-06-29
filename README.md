@@ -6,6 +6,15 @@ It patches Discord's downloaded `discord_desktop_core/core.asar`, creates a back
 
 ## Easy Install
 
+For people who do not want to use a terminal, download the latest TrevorCord Installer from GitHub Releases:
+
+- macOS: open the `.dmg`, launch TrevorCord Installer, then click **Patch Discord**
+- Windows: run the `.exe` installer, launch TrevorCord Installer, then click **Patch Discord**
+
+Fully quit Discord and reopen it after patching. TrevorCord appears inside Discord's own settings sidebar.
+
+## Script Install
+
 macOS / Linux:
 
 ```bash
@@ -25,6 +34,15 @@ Requirements:
 
 Fully quit Discord and reopen it after installing.
 
+## GUI Development
+
+```bash
+npm install
+npm run gui
+```
+
+Release builds are created by GitHub Actions when a `v*` tag is pushed. The workflow builds a macOS `.dmg` and Windows `.exe`.
+
 ## Commands
 
 ```bash
@@ -42,12 +60,11 @@ The injected mod creates:
 ```json
 {
   "gifProviderRewriteEnabled": true,
-  "gifProvider": "klipy",
-  "showSettingsButton": true
+  "gifProvider": "klipy"
 }
 ```
 
-The file lives inside Discord's user data folder at `trevorcord/settings.json`.
+The file lives inside Discord's user data folder at `trevorcord/settings.json`. You can change these from the TrevorCord page inside Discord settings after patching.
 
 You can also set values from the terminal:
 

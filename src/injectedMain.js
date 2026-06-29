@@ -281,8 +281,18 @@
   }
 
   function findSettingsContent() {
-    const candidates = Array.from(document.querySelectorAll('[class*="contentColumn"], [class*="contentRegion"], [class*="standardSidebarView"] main'));
-    return candidates.find(candidate => candidate.getBoundingClientRect().width > 300);
+    const selectors = [
+      '[class*="contentColumn"]',
+      '[class*="contentRegion"] [class*="contentColumn"]',
+      '[class*="standardSidebarView"] main',
+    ];
+
+    for (const selector of selectors) {
+      const candidates = Array.from(document.querySelectorAll(selector));
+      const match = candidates.find(candidate => candidate.getBoundingClientRect().width > 300);
+      if (match) return match;
+    }
+    return null;
   }
 
   function clearSelectedSidebarItems(sidebar) {

@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  package:
+  source:
     name: Package source bundle
     runs-on: ubuntu-latest
     steps:
@@ -18,14 +18,57 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm install
       - run: npm run check
       - run: |
           mkdir -p release
           tar --exclude=.git --exclude=release -czf release/trevorcord-source.tar.gz .
           zip -r release/trevorcord-source.zip . -x ".git/*" "release/*"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trevorcord-source
+          path: |
+            release/trevorcord-source.tar.gz
+            release/trevorcord-source.zip
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             release/trevorcord-source.tar.gz
             release/trevorcord-source.zip
+
+  desktop-installers:
+    name: Build ${{ matrix.name }} installer
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            script: package:mac
+            artifact: TrevorCord-Installer-macOS
+          - name: Windows
+            os: windows-latest
+            script: package:win
+            artifact: TrevorCord-Installer-Windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run check
+      - run: npm run ${{ matrix.script }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            release/*.dmg
+            release/*.exe
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release/*.dmg
+            release/*.exe

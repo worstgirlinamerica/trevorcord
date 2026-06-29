@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "description": "Small standalone Discord desktop mod with configurable GIF provider routing.",
+  "author": "Trevor Weston",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/worstgirlinamerica/trevorcord.git"
+  },
   "main": "src/patcher.js",
   "bin": {
     "trevorcord": "bin/trevorcord.js"
@@ -11,7 +16,43 @@
     "install-mod": "node bin/trevorcord.js install",
     "restore": "node bin/trevorcord.js restore",
     "status": "node bin/trevorcord.js status",
-    "check": "node --check bin/trevorcord.js && node --check src/patcher.js"
+    "gui": "electron installer/main.js",
+    "check": "node --check bin/trevorcord.js && node --check src/patcher.js && node --check src/injectedMain.js && node --check installer/main.js",
+    "package:mac": "electron-builder --mac dmg",
+    "package:win": "electron-builder --win nsis"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.worstgirlinamerica.trevorcord",
+    "productName": "TrevorCord Installer",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "bin/**/*",
+      "installer/**/*",
+      "src/**/*",
+      "package.json",
+      "README.md"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
 }

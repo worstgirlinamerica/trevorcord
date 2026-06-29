@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TrevorCord Installer</title>
+    <link rel="stylesheet" href="./renderer.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Discord desktop mod</p>
+          <h1>TrevorCord</h1>
+          <p class="lede">Patch Discord, restart, and manage TrevorCord from Discord's real settings screen.</p>
+        </div>
+        <div class="status-card">
+          <span class="status-dot" id="statusDot"></span>
+          <div>
+            <div class="status-title" id="statusTitle">Checking Discord...</div>
+            <div class="status-subtitle" id="statusSubtitle">Looking for desktop core files.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button class="primary" id="installButton">Patch Discord</button>
+        <button class="secondary" id="restoreButton">Restore Backup</button>
+        <button class="secondary" id="refreshButton">Refresh Status</button>
+      </section>
+
+      <section class="panel">
+        <h2>What gets installed</h2>
+        <div class="feature-grid">
+          <article>
+            <h3>Settings Tab</h3>
+            <p>Adds TrevorCord inside Discord's settings sidebar instead of a floating button.</p>
+          </article>
+          <article>
+            <h3>GIF Provider</h3>
+            <p>Switch GIF search routing between Klipy, Tenor, and Giphy.</p>
+          </article>
+          <article>
+            <h3>Themes Next</h3>
+            <p>The theme engine will live in the same settings area as new features are added.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="log-panel">
+        <div class="log-header">
+          <h2>Installer Log</h2>
+          <button class="link-button" id="repoButton">GitHub</button>
+        </div>
+        <pre id="logOutput"></pre>
+      </section>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

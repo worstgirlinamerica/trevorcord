@@ -171,38 +171,56 @@ function restoreAsar(asarPath) {
   return "restored";
 }
 
-async function install() {
+function describeAsar(asarPath) {
+  const files = readAsar(asarPath);
+  return {
+    asarPath,
+    patched: files["bundle.js"]?.toString().includes(PATCH_MARKER) || false,
+    backup: fs.existsSync(`${asarPath}${BACKUP_SUFFIX}`),
+  };
+}
+
+function getStatus() {
+  return findCoreAsars().map(describeAsar);
+}
+
+async function install(options = {}) {
   const asars = findCoreAsars();
   if (!asars.length) throw new Error("Could not find a Discord desktop core.asar to patch.");
 
+  const results = [];
   for (const asarPath of asars) {
-    console.log(`${patchAsar(asarPath)}: ${asarPath}`);
+    const result = patchAsar(asarPath);
+    results.push({ asarPath, result, ...describeAsar(asarPath) });
+    if (!options.silent) console.log(`${result}: ${asarPath}`);
   }
-  console.log("Restart Discord completely to load TrevorCord.");
+  if (!options.silent) console.log("Restart Discord completely to load TrevorCord.");
+  return results;
 }
 
-async function restore() {
+async function restore(options = {}) {
   const asars = findCoreAsars();
   if (!asars.length) throw new Error("Could not find a Discord desktop core.asar to restore.");
 
+  const results = [];
   for (const asarPath of asars) {
-    console.log(`${restoreAsar(asarPath)}: ${asarPath}`);
+    const result = restoreAsar(asarPath);
+    results.push({ asarPath, result, ...describeAsar(asarPath) });
+    if (!options.silent) console.log(`${result}: ${asarPath}`);
   }
-  console.log("Restart Discord completely to unload TrevorCord.");
+  if (!options.silent) console.log("Restart Discord completely to unload TrevorCord.");
+  return results;
 }
 
 async function status() {
-  const asars = findCoreAsars();
-  if (!asars.length) {
+  const entries = getStatus();
+  if (!entries.length) {
     console.log("No Discord desktop core.asar found.");
     return;
   }
 
-  for (const asarPath of asars) {
-    const files = readAsar(asarPath);
-    const patched = files["bundle.js"]?.toString().includes(PATCH_MARKER) || false;
-    const backup = fs.existsSync(`${asarPath}${BACKUP_SUFFIX}`);
-    console.log(JSON.stringify({ asarPath, patched, backup }, null, 2));
+  for (const entry of entries) {
+    console.log(JSON.stringify(entry, null, 2));
   }
 }
 
@@ -243,6 +261,7 @@ Settings:
 }
 
 module.exports = {
+  getStatus,
   install,
   restore,
   status,

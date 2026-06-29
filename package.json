@@ -1,6 +1,6 @@
 {
   "name": "trevorcord",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Small standalone Discord desktop mod with configurable GIF provider routing.",
   "author": "Trevor Weston",
@@ -18,8 +18,8 @@
     "status": "node bin/trevorcord.js status",
     "gui": "electron installer/main.js",
     "check": "node --check bin/trevorcord.js && node --check src/patcher.js && node --check src/injectedMain.js && node --check installer/main.js",
-    "package:mac": "electron-builder --mac dmg",
-    "package:win": "electron-builder --win nsis"
+    "package:mac": "electron-builder --mac dmg --publish never",
+    "package:win": "electron-builder --win nsis --publish never"
   },
   "license": "MIT",
   "devDependencies": {

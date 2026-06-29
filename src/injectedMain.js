@@ -272,12 +272,40 @@
     return button;
   }
 
+  function elementHasOwnText(element, expectedText) {
+    return Array.from(element.childNodes).some(node => (
+      node.nodeType === Node.TEXT_NODE && node.textContent.trim() === expectedText
+    ));
+  }
+
+  function findElementByOwnText(expectedText) {
+    return Array.from(document.querySelectorAll("div, span, h1, h2, h3")).find(element => (
+      elementHasOwnText(element, expectedText)
+    ));
+  }
+
+  function looksLikeSettingsSidebar(element) {
+    const text = element.textContent || "";
+    const rect = element.getBoundingClientRect();
+    return rect.width >= 180 && rect.width <= 520 && (
+      text.includes("My Account") ||
+      text.includes("Vencord Settings") ||
+      text.includes("Billing")
+    );
+  }
+
   function findSettingsSidebar() {
-    const candidates = Array.from(document.querySelectorAll('[class*="sidebar"]'));
-    return candidates.find(candidate => {
-      const text = candidate.textContent || "";
-      return text.includes("My Account") || text.includes("Profiles") || text.includes("Vencord");
-    });
+    const classCandidates = Array.from(document.querySelectorAll('[class*="sidebar"], [class*="Sidebar"]'));
+    const classMatch = classCandidates.find(looksLikeSettingsSidebar);
+    if (classMatch) return classMatch;
+
+    const marker = findElementByOwnText("Vencord Settings") || findElementByOwnText("Billing");
+    let cursor = marker;
+    while (cursor && cursor !== document.body) {
+      if (looksLikeSettingsSidebar(cursor)) return cursor;
+      cursor = cursor.parentElement;
+    }
+    return null;
   }
 
   function findSettingsContent() {
@@ -293,6 +321,14 @@
       if (match) return match;
     }
     return null;
+  }
+
+  function directChildUnder(parent, child) {
+    let cursor = child;
+    while (cursor?.parentElement && cursor.parentElement !== parent) {
+      cursor = cursor.parentElement;
+    }
+    return cursor?.parentElement === parent ? cursor : null;
   }
 
   function clearSelectedSidebarItems(sidebar) {
@@ -394,18 +430,18 @@
       }
     });
 
-    const insertBefore = Array.from(sidebar.children).find(child => /logout/i.test(child.textContent || ""));
+    const billingAnchor = directChildUnder(sidebar, findElementByOwnText("Billing"));
+    const insertBefore = billingAnchor || Array.from(sidebar.children).find(child => /logout/i.test(child.textContent || ""));
     sidebar.insertBefore(header, insertBefore || null);
     sidebar.insertBefore(item, insertBefore || null);
   }
 
   function syncSettingsInjection() {
     const sidebar = findSettingsSidebar();
-    const content = findSettingsContent();
-    if (!sidebar || !content) return;
+    if (sidebar) makeSidebarEntry(sidebar);
 
-    makeSidebarEntry(sidebar);
-    if (active && !document.body.contains(content.querySelector(".tc-settings-root"))) {
+    const content = findSettingsContent();
+    if (content && active && !document.body.contains(content.querySelector(".tc-settings-root"))) {
       renderTrevorCordPage(content);
     }
   }

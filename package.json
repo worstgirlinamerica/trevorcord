@@ -1,6 +1,6 @@
 {
   "name": "trevorcord",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Small standalone Discord desktop mod with configurable GIF provider routing.",
   "author": "Trevor Weston",

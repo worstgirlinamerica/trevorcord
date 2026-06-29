@@ -22,8 +22,8 @@ jobs:
       - run: npm run check
       - run: |
           mkdir -p release
-          tar --exclude=.git --exclude=release -czf release/trevorcord-source.tar.gz .
-          zip -r release/trevorcord-source.zip . -x ".git/*" "release/*"
+          tar --exclude=.git --exclude=node_modules --exclude=release -czf release/trevorcord-source.tar.gz .
+          zip -r release/trevorcord-source.zip . -x ".git/*" "node_modules/*" "release/*"
       - uses: actions/upload-artifact@v4
         with:
           name: trevorcord-source

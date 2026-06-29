@@ -144,19 +144,24 @@ function patchAsar(asarPath) {
   const backupPath = `${asarPath}${BACKUP_SUFFIX}`;
   if (!fs.existsSync(backupPath)) fs.copyFileSync(asarPath, backupPath);
 
-  const files = readAsar(asarPath);
+  let files = readAsar(asarPath);
   const bundleBuffer = files["bundle.js"];
   if (!bundleBuffer) throw new Error(`No bundle.js found in ${asarPath}`);
 
   const bundle = bundleBuffer.toString();
-  if (bundle.includes(PATCH_MARKER)) return "already-patched";
-  if (!bundle.startsWith("(()=>{")) {
+  let result = "patched";
+  if (bundle.includes(PATCH_MARKER)) {
+    files = readAsar(backupPath);
+    result = "updated";
+  }
+  const baseBundle = files["bundle.js"].toString();
+  if (!baseBundle.startsWith("(()=>{")) {
     throw new Error(`Unexpected bundle shape in ${asarPath}`);
   }
 
-  files["bundle.js"] = Buffer.from(bundle.replace("(()=>{", `(()=>{\n${injectedMain}\n`));
+  files["bundle.js"] = Buffer.from(baseBundle.replace("(()=>{", `(()=>{\n${injectedMain}\n`));
   fs.writeFileSync(asarPath, packAsar(files));
-  return "patched";
+  return result;
 }
 
 function restoreAsar(asarPath) {

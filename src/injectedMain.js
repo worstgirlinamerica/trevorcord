@@ -10,7 +10,6 @@
   const DEFAULT_SETTINGS = {
     gifProviderRewriteEnabled: true,
     gifProvider: "klipy",
-    showSettingsButton: true,
   };
 
   function getSettingsPath() {
@@ -47,9 +46,10 @@
       return urlString;
     }
 
+    const selectedProvider = settings.gifProvider || "klipy";
     const provider = url.searchParams.get("provider");
-    if (provider === "giphy" || provider === "tenor") {
-      url.searchParams.set("provider", settings.gifProvider || "klipy");
+    if (["giphy", "tenor", "klipy", null].includes(provider) && provider !== selectedProvider) {
+      url.searchParams.set("provider", selectedProvider);
       return url.toString();
     }
 
@@ -65,10 +65,17 @@
       return;
     }
 
+    if (url.pathname === "/__trevorcord/restart") {
+      app.relaunch();
+      app.exit(0);
+      callback({ cancel: true });
+      return;
+    }
+
     if (url.pathname === "/__trevorcord/set") {
       const settings = readSettings();
       for (const [key, value] of url.searchParams.entries()) {
-        if (key === "gifProviderRewriteEnabled" || key === "showSettingsButton") {
+        if (key === "gifProviderRewriteEnabled") {
           settings[key] = value === "true";
         } else if (key === "gifProvider") {
           settings[key] = value;
@@ -88,49 +95,132 @@
 
   const state = ${JSON.stringify(settings)};
   const providers = ["klipy", "tenor", "giphy"];
+  let restartRequired = false;
+  let active = false;
+  let previousContent = null;
 
   const style = document.createElement("style");
   style.id = "trevorcord-style";
   style.textContent = \`
-    .tc-button {
-      position: fixed;
-      left: 12px;
-      bottom: 12px;
-      z-index: 2147483647;
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: #2b2d31;
-      color: #f2f3f5;
-      font: 700 13px/1 system-ui, sans-serif;
+    .tc-sidebar-header {
+      color: var(--channels-default, #949ba4);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 16px;
+      padding: 6px 10px;
+      text-transform: uppercase;
+    }
+    .tc-sidebar-item {
+      align-items: center;
+      border-radius: 4px;
+      color: var(--interactive-normal, #b5bac1);
       cursor: pointer;
-      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      display: flex;
+      font-size: 16px;
+      font-weight: 500;
+      gap: 10px;
+      line-height: 20px;
+      margin: 2px 0;
+      min-height: 32px;
+      padding: 6px 10px;
+      user-select: none;
     }
-    .tc-panel {
-      position: fixed;
-      z-index: 2147483647;
-      inset: auto auto 58px 12px;
-      width: 340px;
-      max-width: calc(100vw - 24px);
+    .tc-sidebar-item:hover {
+      background: var(--background-modifier-hover, rgba(78,80,88,.3));
+      color: var(--interactive-hover, #dbdee1);
+    }
+    .tc-sidebar-item.tc-selected {
+      background: var(--background-modifier-selected, rgba(78,80,88,.6));
+      color: var(--interactive-active, #fff);
+    }
+    .tc-sidebar-icon {
+      height: 20px;
+      width: 20px;
+      flex: 0 0 auto;
+    }
+    .tc-settings-root {
+      box-sizing: border-box;
+      color: var(--text-normal, #dbdee1);
+      max-width: 740px;
+      min-width: 460px;
+      padding: 60px 40px 80px;
+    }
+    .tc-settings-root * {
+      box-sizing: border-box;
+    }
+    .tc-restart-bar {
+      align-items: center;
+      background: var(--background-floating, #111214);
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: #313338;
-      color: #f2f3f5;
-      font: 14px system-ui, sans-serif;
-      box-shadow: 0 18px 50px rgba(0,0,0,.42);
-      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.32);
+      display: none;
+      gap: 16px;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding: 12px 14px;
     }
-    .tc-panel[hidden] { display: none; }
-    .tc-title { font-size: 18px; font-weight: 700; margin: 0 0 14px; }
-    .tc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; }
-    .tc-label { color: #dbdee1; font-weight: 600; }
-    .tc-muted { color: #b5bac1; font-size: 12px; margin-top: 4px; }
+    .tc-restart-bar.tc-visible {
+      display: flex;
+    }
+    .tc-restart-text {
+      color: var(--text-normal, #dbdee1);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .tc-restart-button {
+      background: var(--brand-500, #5865f2);
+      border: 0;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      min-height: 32px;
+      padding: 0 14px;
+    }
+    .tc-title {
+      color: var(--header-primary, #f2f3f5);
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 24px;
+      margin: 0 0 6px;
+    }
+    .tc-description {
+      color: var(--text-muted, #949ba4);
+      font-size: 14px;
+      line-height: 20px;
+      margin: 0 0 24px;
+    }
+    .tc-section {
+      border-top: 1px solid var(--background-modifier-accent, rgba(78,80,88,.48));
+      padding: 20px 0;
+    }
+    .tc-section-title {
+      color: var(--header-secondary, #dbdee1);
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+    .tc-section-description {
+      color: var(--text-muted, #949ba4);
+      font-size: 13px;
+      line-height: 18px;
+      margin: 0;
+    }
+    .tc-row {
+      align-items: center;
+      display: flex;
+      gap: 20px;
+      justify-content: space-between;
+      margin-top: 16px;
+    }
     .tc-select {
-      background: #1e1f22;
-      color: #f2f3f5;
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 6px;
+      background: var(--input-background, #1e1f22);
+      border: 1px solid var(--background-modifier-accent, rgba(78,80,88,.48));
+      border-radius: 4px;
+      color: var(--text-normal, #dbdee1);
+      min-height: 36px;
+      min-width: 180px;
       padding: 7px 9px;
     }
     .tc-toggle {
@@ -158,14 +248,21 @@
 
   function save(key, value) {
     state[key] = value;
+    restartRequired = true;
+    updateRestartBar();
     const url = new URL("https://discord.com/__trevorcord/set");
     url.searchParams.set(key, String(value));
     fetch(url.toString()).catch(() => {});
   }
 
+  function restartDiscord() {
+    fetch("https://discord.com/__trevorcord/restart").catch(() => {});
+  }
+
   function createToggle(key) {
     const button = document.createElement("button");
     button.className = "tc-toggle";
+    button.type = "button";
     button.dataset.on = String(Boolean(state[key]));
     button.addEventListener("click", () => {
       const next = button.dataset.on !== "true";
@@ -175,52 +272,142 @@
     return button;
   }
 
-  const openButton = document.createElement("button");
-  openButton.className = "tc-button";
-  openButton.type = "button";
-  openButton.textContent = "TC";
-  openButton.title = "TrevorCord";
-
-  const panel = document.createElement("section");
-  panel.className = "tc-panel";
-  panel.hidden = true;
-  panel.innerHTML = \`
-    <h2 class="tc-title">TrevorCord</h2>
-    <div class="tc-row">
-      <div>
-        <div class="tc-label">GIF provider rewrite</div>
-        <div class="tc-muted">Routes Discord GIF search requests to your selected provider.</div>
-      </div>
-      <span data-slot="rewrite-toggle"></span>
-    </div>
-    <div class="tc-row">
-      <div>
-        <div class="tc-label">Search provider</div>
-        <div class="tc-muted">Klipy is the default replacement.</div>
-      </div>
-      <select class="tc-select" data-slot="provider"></select>
-    </div>
-  \`;
-
-  panel.querySelector('[data-slot="rewrite-toggle"]').appendChild(createToggle("gifProviderRewriteEnabled"));
-  const providerSelect = panel.querySelector('[data-slot="provider"]');
-  for (const provider of providers) {
-    const option = document.createElement("option");
-    option.value = provider;
-    option.textContent = provider[0].toUpperCase() + provider.slice(1);
-    option.selected = provider === state.gifProvider;
-    providerSelect.appendChild(option);
+  function findSettingsSidebar() {
+    const candidates = Array.from(document.querySelectorAll('[class*="sidebar"]'));
+    return candidates.find(candidate => {
+      const text = candidate.textContent || "";
+      return text.includes("My Account") || text.includes("Profiles") || text.includes("Vencord");
+    });
   }
-  providerSelect.addEventListener("change", () => save("gifProvider", providerSelect.value));
 
-  openButton.addEventListener("click", () => {
-    panel.hidden = !panel.hidden;
-  });
-
-  if (state.showSettingsButton !== false) {
-    document.body.appendChild(openButton);
-    document.body.appendChild(panel);
+  function findSettingsContent() {
+    const candidates = Array.from(document.querySelectorAll('[class*="contentColumn"], [class*="contentRegion"], [class*="standardSidebarView"] main'));
+    return candidates.find(candidate => candidate.getBoundingClientRect().width > 300);
   }
+
+  function clearSelectedSidebarItems(sidebar) {
+    sidebar.querySelectorAll(".tc-sidebar-item.tc-selected").forEach(item => item.classList.remove("tc-selected"));
+  }
+
+  function updateRestartBar() {
+    const bar = document.querySelector(".tc-restart-bar");
+    if (!bar) return;
+    bar.classList.toggle("tc-visible", restartRequired);
+  }
+
+  function renderTrevorCordPage(content) {
+    if (!content) return;
+    if (!previousContent) previousContent = Array.from(content.childNodes);
+    content.replaceChildren();
+
+    const root = document.createElement("section");
+    root.className = "tc-settings-root";
+    root.innerHTML =
+      '<div class="tc-restart-bar">' +
+        '<div class="tc-restart-text">Restart Discord to apply TrevorCord changes.</div>' +
+        '<button class="tc-restart-button" type="button">Restart</button>' +
+      '</div>' +
+      '<h2 class="tc-title">TrevorCord</h2>' +
+      '<p class="tc-description">Configure TrevorCord features. More modules can be added here as the mod grows.</p>' +
+      '<section class="tc-section">' +
+        '<h3 class="tc-section-title">GIF Search Engine</h3>' +
+        '<p class="tc-section-description">Route Discord GIF search requests through the selected provider.</p>' +
+        '<div class="tc-row">' +
+          '<div>' +
+            '<div class="tc-section-title">Enable provider rewrite</div>' +
+            '<p class="tc-section-description">When enabled, Giphy or Tenor GIF searches are redirected to your selected engine.</p>' +
+          '</div>' +
+          '<span data-slot="rewrite-toggle"></span>' +
+        '</div>' +
+        '<div class="tc-row">' +
+          '<div>' +
+            '<div class="tc-section-title">Provider</div>' +
+            '<p class="tc-section-description">Klipy is the default replacement.</p>' +
+          '</div>' +
+          '<select class="tc-select" data-slot="provider"></select>' +
+        '</div>' +
+      '</section>';
+
+    root.querySelector(".tc-restart-button").addEventListener("click", restartDiscord);
+    root.querySelector('[data-slot="rewrite-toggle"]').appendChild(createToggle("gifProviderRewriteEnabled"));
+    const providerSelect = root.querySelector('[data-slot="provider"]');
+    for (const provider of providers) {
+      const option = document.createElement("option");
+      option.value = provider;
+      option.textContent = provider[0].toUpperCase() + provider.slice(1);
+      option.selected = provider === state.gifProvider;
+      providerSelect.appendChild(option);
+    }
+    providerSelect.addEventListener("change", () => save("gifProvider", providerSelect.value));
+
+    content.appendChild(root);
+    updateRestartBar();
+  }
+
+  function restoreDiscordSettingsPage(content) {
+    if (!content || !previousContent) return;
+    content.replaceChildren(...previousContent);
+    previousContent = null;
+    active = false;
+  }
+
+  function makeSidebarEntry(sidebar) {
+    if (sidebar.querySelector('[data-trevorcord-sidebar="true"]')) return;
+
+    const header = document.createElement("div");
+    header.className = "tc-sidebar-header";
+    header.dataset.trevorcordSidebar = "true";
+    header.textContent = "TrevorCord";
+
+    const item = document.createElement("div");
+    item.className = "tc-sidebar-item";
+    item.dataset.trevorcordSidebar = "true";
+    item.setAttribute("role", "button");
+    item.tabIndex = 0;
+    item.innerHTML =
+      '<svg class="tc-sidebar-icon" viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.69c-2.78.61-3.37-1.34-3.37-1.34-.45-1.16-1.1-1.47-1.1-1.47-.9-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03A9.56 9.56 0 0 1 12 6.84c.85 0 1.71.11 2.51.33 1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.69-4.57 4.94.36.31.68.92.68 1.86v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/>' +
+      '</svg>' +
+      '<span>TrevorCord</span>';
+
+    const activate = () => {
+      active = true;
+      clearSelectedSidebarItems(sidebar);
+      item.classList.add("tc-selected");
+      renderTrevorCordPage(findSettingsContent());
+    };
+    item.addEventListener("click", activate);
+    item.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        activate();
+      }
+    });
+
+    const insertBefore = Array.from(sidebar.children).find(child => /logout/i.test(child.textContent || ""));
+    sidebar.insertBefore(header, insertBefore || null);
+    sidebar.insertBefore(item, insertBefore || null);
+  }
+
+  function syncSettingsInjection() {
+    const sidebar = findSettingsSidebar();
+    const content = findSettingsContent();
+    if (!sidebar || !content) return;
+
+    makeSidebarEntry(sidebar);
+    if (active && !document.body.contains(content.querySelector(".tc-settings-root"))) {
+      renderTrevorCordPage(content);
+    }
+  }
+
+  document.addEventListener("click", event => {
+    if (active && !event.target.closest('[data-trevorcord-sidebar="true"]') && event.target.closest('[class*="sidebar"]')) {
+      restoreDiscordSettingsPage(findSettingsContent());
+    }
+  }, true);
+
+  new MutationObserver(syncSettingsInjection).observe(document.body, { childList: true, subtree: true });
+  syncSettingsInjection();
 })();
 `;
   }

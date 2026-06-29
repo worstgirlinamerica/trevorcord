@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package source bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check
+      - run: |
+          mkdir -p release
+          tar --exclude=.git --exclude=release -czf release/trevorcord-source.tar.gz .
+          zip -r release/trevorcord-source.zip . -x ".git/*" "release/*"
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release/trevorcord-source.tar.gz
+            release/trevorcord-source.zip
